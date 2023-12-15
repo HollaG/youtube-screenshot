@@ -1,32 +1,34 @@
-import {
-    BookmarkIcon,
-    MagnifyingGlassIcon,
-    TrashIcon,
-} from "@radix-ui/react-icons";
-import {
-    AspectRatio,
-    Box,
-    Button,
-    Container,
-    Flex,
-    Heading,
-    Slider,
-    TextField,
-} from "@radix-ui/themes";
 import React, { useEffect, useRef, useState } from "react";
 import ReactPlayer from "react-player";
 import TimestampList from "./TimestampList";
 
 import download from "downloadjs";
 import MainVideo from "./MainVideo";
-import AddScreenshotToast from "./Toasts/AddScreenshotToast";
+
+import {
+    Box,
+    Button,
+    Container,
+    Flex,
+    Heading,
+    Input,
+    ToastProps,
+    useToast,
+} from "@chakra-ui/react";
 
 const LEFT_DEFAULT = 0;
 const LEFT_OFFSET_DEFAULT = 100;
 const BOTTOM_DEFAULT = 0;
 const BOTTOM_OFFSET_DEFAULT = 100;
 
+const DEFAULT_TOAST_OPTIONS: ToastProps = {
+    isClosable: true,
+    position: "bottom-right",
+};
+
 const Body = () => {
+    // toasts
+    const toast = useToast();
     const urlRef = useRef<HTMLInputElement>(null);
     // youtube url
     const [url, setUrl] = useState("");
@@ -46,46 +48,86 @@ const Body = () => {
     const addScreenshot = () => {
         if (!mainPlayerRef.current) return;
         const currentTime = mainPlayerRef.current.getCurrentTime();
-        console.log(currentTime);
+
+        if (timestamps.includes(currentTime)) {
+            toast({
+                status: "error",
+                title: "Screenshot at this timestamp already added!",
+                ...DEFAULT_TOAST_OPTIONS,
+            });
+            return;
+        }
+
         // add this in the timestamps, sorted by time.
         setTimestamps((prev) => [...prev, currentTime]);
+        toast({
+            status: "success",
 
-        setAddToastOpen(false);
-        window.clearTimeout(timerRef.current);
-        timerRef.current = window.setTimeout(() => {
-            setAddToastOpen(true);
-        }, 100);
+            title: "Added screenshot!",
+            ...DEFAULT_TOAST_OPTIONS,
+        });
     };
 
     const removeScreenshot = (timestamp: number) => {
         // remove from timestamp list
-        setTimestamps((prev) => prev.filter((t) => t !== timestamp));
+
+        setTimestamps((prev) => prev.filter((t) => t != timestamp));
+
+        toast({
+            title: "Deleted screenshot",
+            description: `Timestamp: ${convertToSecondsWithTwoDp(timestamp)}s`,
+            status: "success",
+            ...DEFAULT_TOAST_OPTIONS,
+        });
     };
 
+    const [isLoading, setIsLoading] = useState(false);
     const downloadPDF = async () => {
-        const res = await fetch("http://localho.st:3000", {
-            method: "POST",
-            body: JSON.stringify({
-                url,
-                timestamps,
-                cropSettings,
-            }),
-            headers: {
-                "Content-Type": "application/json",
+        setIsLoading(true);
+        const downloadPromise = new Promise((resolve, reject) => {
+            fetch("http://localho.st:3000", {
+                method: "POST",
+                body: JSON.stringify({
+                    url,
+                    timestamps,
+                    cropSettings,
+                }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            })
+                .then((res) => res.blob())
+                .then((blob) => {
+                    download(blob);
+                    resolve(null);
+                })
+                .catch((e) => {
+                    reject(e);
+                })
+                .finally(() => {
+                    setIsLoading(false);
+                });
+        });
+
+        toast.promise(downloadPromise, {
+            success: {
+                title: "Processing complete.",
+                description: "Your file is now downloading!",
+                ...DEFAULT_TOAST_OPTIONS,
+            },
+            error: {
+                title: "Error processing the video!",
+                description: "Something went wrong! Please try again later.",
+                ...DEFAULT_TOAST_OPTIONS,
+            },
+            loading: {
+                title: "File processing & downloading",
+                description: "Please wait...",
+                ...DEFAULT_TOAST_OPTIONS,
+                isClosable: false,
             },
         });
-        const blob = await res.blob();
-
-        download(blob);
     };
-
-    let videoDetails = null;
-    // if (url && getId(url)) {
-    //     // todo: debounce
-    //     fetch("http://localho.st:3000/info?url=" + url)
-    //         .then((res) => res.json())
-    //         .then((data) => (videoDetails = data));
-    // }
 
     // -------- Controls for the crop
     const [cropSettings, setCropSettings] = useState<{
@@ -136,7 +178,7 @@ const Body = () => {
         setBottom,
     };
 
-    const cropOne = (timestamp: number | null) => {
+    const cropOne = (timestamp: number | null, isAll?: boolean) => {
         if (timestamp === null) {
             setIsCropping(false);
             return;
@@ -151,46 +193,48 @@ const Body = () => {
             },
         }));
         setIsCropping(false);
+
+        if (!isAll) {
+            toast({
+                title: `Cropped image`,
+                description: `Timestamp: ${convertToSecondsWithTwoDp(
+                    timestamp
+                )}s`,
+                status: "success",
+                ...DEFAULT_TOAST_OPTIONS,
+            });
+        }
     };
 
     const cropAll = () => {
         console.log(timestamps);
         for (const timestamp of timestamps) {
-            cropOne(timestamp);
+            cropOne(timestamp, true);
         }
+        toast({
+            title: "Cropped all images",
+            status: "success",
+            ...DEFAULT_TOAST_OPTIONS,
+        });
     };
 
     const cropCancel = () => {
         setIsCropping(false);
     };
 
-    // ------------- Toast when adding
-    const [addToastOpen, setAddToastOpen] = React.useState(false);
-    const timerRef = React.useRef(0);
-
     return (
-        <Container size="3" mx={"0"} my={"9"}>
-            <AddScreenshotToast open={addToastOpen} setOpen={setAddToastOpen} />
-            <Flex direction={"column"} gap="6">
-                <Heading align={"center"}> Youtube Screenshot Tool</Heading>
+        <Container maxW="container.xl" centerContent mx={"auto"} my={"9"}>
+            <Flex direction={"column"} gap="6" width={"100%"}>
+                <Heading textAlign={"center"}> Youtube Screenshot Tool</Heading>
                 <Flex gap={"4"}>
-                    <Box grow={"1"}>
-                        <TextField.Root>
-                            <TextField.Slot>
-                                <MagnifyingGlassIcon height="16" width="16" />
-                            </TextField.Slot>
-                            <TextField.Input
-                                placeholder="Paste a Youtube URL…"
-                                ref={urlRef}
-                            />
-                        </TextField.Root>
+                    <Box flexGrow={"1"}>
+                        <Input
+                            placeholder="Paste a Youtube URL…"
+                            ref={urlRef}
+                        />
                     </Box>
                     <Box>
-                        <Button
-                            style={{ cursor: "pointer" }}
-                            onClick={searchUrl}
-                        >
-                            {" "}
+                        <Button colorScheme="teal" onClick={searchUrl}>
                             Search
                         </Button>
                     </Box>
@@ -208,13 +252,10 @@ const Body = () => {
                         {!isCropping ? (
                             <Button
                                 onClick={addScreenshot}
-                                style={{
-                                    cursor: videoId ? "pointer" : "not-allowed",
-                                }}
-                                disabled={!videoId}
+                                isDisabled={!videoId}
+                                colorScheme="teal"
                             >
-                                <BookmarkIcon width="16" height="16" /> Add
-                                Screenshot at current time
+                                Add Screenshot at current time
                             </Button>
                         ) : (
                             <>
@@ -222,20 +263,14 @@ const Body = () => {
                                     onClick={() =>
                                         cropOne(currentCropTimestamp)
                                     }
-                                    style={{ cursor: "pointer" }}
+                                    colorScheme="teal"
                                 >
                                     Crop just this frame
                                 </Button>
-                                <Button
-                                    onClick={cropAll}
-                                    style={{ cursor: "pointer" }}
-                                >
+                                <Button onClick={cropAll} colorScheme="teal">
                                     Crop all
                                 </Button>
-                                <Button
-                                    onClick={cropCancel}
-                                    style={{ cursor: "pointer" }}
-                                >
+                                <Button onClick={cropCancel} colorScheme="red">
                                     Cancel
                                 </Button>
                             </>
@@ -243,7 +278,7 @@ const Body = () => {
                     </Flex>
                 </Box>
                 <Flex justify="between">
-                    <Box grow={"1"}>
+                    <Box flexGrow={"1"}>
                         <TimestampList
                             timestamps={timestamps}
                             setTimestamps={setTimestamps}
@@ -257,12 +292,9 @@ const Body = () => {
                     <Flex justify={"center"} gap={"8"}>
                         <Button
                             onClick={downloadPDF}
-                            style={{
-                                cursor: timestamps.length
-                                    ? "pointer"
-                                    : "not-allowed",
-                            }}
-                            disabled={!timestamps.length}
+                            isDisabled={!timestamps.length}
+                            colorScheme="teal"
+                            isLoading={isLoading}
                         >
                             {" "}
                             Download PDF{" "}

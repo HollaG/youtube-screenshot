@@ -1,4 +1,13 @@
-import { Flex, Box, AspectRatio, Slider } from "@radix-ui/themes";
+import {
+    AspectRatio,
+    Box,
+    Flex,
+    RangeSlider,
+    RangeSliderFilledTrack,
+    RangeSliderThumb,
+    RangeSliderTrack,
+    Slider,
+} from "@chakra-ui/react";
 import ReactPlayer from "react-player";
 
 const sliderWidth = "24px";
@@ -34,7 +43,7 @@ const MainVideo = ({
             {/* Video and Vertical Crop */}
             <Flex>
                 <Box
-                    shrink={"0"}
+                    flexShrink={"0"}
                     style={{
                         width: sliderWidth,
                         zIndex: 100,
@@ -45,7 +54,7 @@ const MainVideo = ({
                 orientation="vertical"
             /> */}
                 </Box>
-                <Box grow={"1"}>
+                <Box flexGrow={"1"}>
                     {/* Video */}
                     <Box
                         style={{
@@ -85,14 +94,22 @@ const MainVideo = ({
                 >
                     <Box style={{ transform: "scale(1.01)" }}>
                         {isCropping && (
-                            <Slider
+                            <RangeSlider
+                                aria-label={["min", "max"]}
                                 value={[controls.bottom, controls.bottomOffset]}
                                 orientation="vertical"
-                                onValueChange={([nb, nt]) => {
+                                onChange={([nb, nt]) => {
                                     controls.setBottomOffset(nt);
                                     controls.setBottom(nb);
                                 }}
-                            />
+                                colorScheme="teal"
+                            >
+                                <RangeSliderTrack>
+                                    <RangeSliderFilledTrack />
+                                </RangeSliderTrack>
+                                <RangeSliderThumb index={0} />
+                                <RangeSliderThumb index={1} />
+                            </RangeSlider>
                         )}
                     </Box>
                 </Flex>
@@ -104,7 +121,7 @@ const MainVideo = ({
                     style={{
                         width: sliderWidth,
                     }}
-                    shrink={"0"}
+                    flexShrink={"0"}
                 ></Box>
                 <Flex
                     grow={"1"}
@@ -115,14 +132,21 @@ const MainVideo = ({
                 >
                     <Box width={"100%"} style={{ transform: "scale(1.01)" }}>
                         {isCropping && (
-                            <Slider
+                            <RangeSlider
+                                aria-label={["min", "max"]}
                                 value={[controls.left, controls.leftOffset]}
-                                onValueChange={([nl, nr]) => {
-                                    console.log([nl, nr]);
+                                onChange={([nl, nr]) => {
                                     controls.setLeft(nl);
                                     controls.setLeftOffset(nr);
                                 }}
-                            />
+                                colorScheme="teal"
+                            >
+                                <RangeSliderTrack>
+                                    <RangeSliderFilledTrack />
+                                </RangeSliderTrack>
+                                <RangeSliderThumb index={0} />
+                                <RangeSliderThumb index={1} />
+                            </RangeSlider>
                         )}
                     </Box>
                 </Flex>
@@ -130,7 +154,7 @@ const MainVideo = ({
                     style={{
                         width: sliderWidth,
                     }}
-                    shrink={"0"}
+                    flexShrink={"0"}
                 ></Box>
             </Flex>
         </Flex>

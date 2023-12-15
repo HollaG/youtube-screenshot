@@ -1,9 +1,7 @@
-import "./TimestampList.css";
-
 import { List, arrayMove } from "react-movable";
-import { Box, Flex, Text } from "@radix-ui/themes";
 import TimestampComponent from "./TimestampComponent";
-import ReactPlayer from "react-player";
+import { Box, Flex, Text } from "@chakra-ui/react";
+
 const TimestampList = ({
     timestamps,
     setTimestamps,
@@ -22,8 +20,7 @@ const TimestampList = ({
             <Text
                 align="center"
                 style={{ fontWeight: "bold" }}
-                color="purple"
-                size={"5"}
+                fontSize={"xl"}
                 mb={"2"}
             >
                 {" "}
@@ -42,13 +39,14 @@ const TimestampList = ({
                             {children}
                         </Flex>
                     )}
-                    renderItem={({ value, props }) => (
+                    renderItem={({ value, props, index }) => (
                         <div {...props}>
                             <TimestampComponent
                                 timestamp={value}
                                 onDelete={onDelete}
                                 videoId={videoId}
                                 beginCrop={beginCrop}
+                                index={index || -1}
                             />
                         </div>
                     )}
