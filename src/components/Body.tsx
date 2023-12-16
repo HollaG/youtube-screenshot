@@ -227,7 +227,7 @@ const Body = () => {
 
     return (
         <Container maxW="container.xl" centerContent mx={"auto"} my={"9"}>
-            <Flex direction={"column"} gap="6" width={"100%"}>
+            <Flex direction={"column"} gap="4" width={"100%"}>
                 <Heading textAlign={"center"}> Youtube Screenshot Tool</Heading>
                 <Flex gap={"4"}>
                     <Box flexGrow={"1"}>

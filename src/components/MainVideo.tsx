@@ -1,6 +1,8 @@
 import {
     AspectRatio,
     Box,
+    Button,
+    ButtonGroup,
     Flex,
     RangeSlider,
     RangeSliderFilledTrack,
@@ -36,6 +38,17 @@ const MainVideo = ({
     isCropping: boolean;
     completeCrop: () => void;
 }) => {
+    /**
+     * Shifts the playhead by x seconds.
+     *
+     * @param seconds Seconds to jump forward / behind
+     */
+    const seek = (seconds: number) => {
+        mainPlayerRef.current?.seekTo(
+            mainPlayerRef.current.getCurrentTime() + seconds
+        );
+    };
+
     return (
         <Flex direction={"column"} p={"4"}>
             {/* Video and Vertical Crop */}
@@ -155,6 +168,16 @@ const MainVideo = ({
                     flexShrink={"0"}
                 ></Box>
             </Flex>
+            <ButtonGroup variant="outline" size="sm" colorScheme="teal">
+                <Flex justifyContent={"center"} gap={2} w="100%">
+                    <Button onClick={() => seek(-10)}> -10s </Button>
+                    <Button onClick={() => seek(-5)}> -5s </Button>
+                    <Button onClick={() => seek(-1)}> -1s </Button>
+                    <Button onClick={() => seek(1)}> +1s </Button>
+                    <Button onClick={() => seek(5)}> +5s </Button>
+                    <Button onClick={() => seek(10)}> +10s </Button>
+                </Flex>
+            </ButtonGroup>
         </Flex>
     );
 };
