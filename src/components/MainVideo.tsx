@@ -6,7 +6,6 @@ import {
     RangeSliderFilledTrack,
     RangeSliderThumb,
     RangeSliderTrack,
-    Slider,
 } from "@chakra-ui/react";
 import ReactPlayer from "react-player";
 
@@ -20,7 +19,6 @@ const MainVideo = ({
     videoId,
     controls,
     isCropping,
-    completeCrop,
 }: {
     mainPlayerRef: React.RefObject<ReactPlayer>;
     videoId: string;

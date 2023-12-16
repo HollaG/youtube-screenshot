@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import ReactPlayer from "react-player";
 import TimestampList from "./TimestampList";
 
@@ -25,6 +25,8 @@ const DEFAULT_TOAST_OPTIONS: ToastProps = {
     isClosable: true,
     position: "bottom-right",
 };
+
+const SERVER_URL = import.meta.env.VITE_SERVER_URL;
 
 const Body = () => {
     // toasts
@@ -82,10 +84,11 @@ const Body = () => {
     };
 
     const [isLoading, setIsLoading] = useState(false);
+
     const downloadPDF = async () => {
         setIsLoading(true);
         const downloadPromise = new Promise((resolve, reject) => {
-            fetch("http://localho.st:3000", {
+            fetch(SERVER_URL, {
                 method: "POST",
                 body: JSON.stringify({
                     url,
@@ -323,7 +326,5 @@ function getId(url: string) {
 export function convertToSecondsWithTwoDp(time: number) {
     return Math.round(time * 100) / 100;
 }
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default Body;

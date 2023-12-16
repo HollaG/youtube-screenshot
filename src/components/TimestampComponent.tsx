@@ -1,6 +1,6 @@
 import { convertToSecondsWithTwoDp } from "./Body";
 import ReactPlayer from "react-player";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { AspectRatio, Box, Button, Flex, Text } from "@chakra-ui/react";
 
 const TimestampComponent = ({
@@ -8,7 +8,6 @@ const TimestampComponent = ({
     onDelete,
     videoId,
     beginCrop,
-    index,
 }: {
     timestamp: number;
     onDelete: (timestamp: number) => void;
