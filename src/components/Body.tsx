@@ -157,6 +157,11 @@ const Body = () => {
         setIsCropping(true);
         setCurrentCropTimestamp(timestamp);
 
+        scrollTo({
+            top: 0,
+            behavior: "smooth",
+        });
+
         if (cropSettings[timestamp]) {
             setLeft(cropSettings[timestamp].left);
             setBottom(cropSettings[timestamp].bottom);
@@ -229,20 +234,25 @@ const Body = () => {
         <Container maxW="container.xl" centerContent mx={"auto"} my={"9"}>
             <Flex direction={"column"} gap="4" width={"100%"}>
                 <Heading textAlign={"center"}> Youtube Screenshot Tool</Heading>
-                <Flex gap={"4"}>
-                    <Box flexGrow={"1"}>
-                        <Input
-                            placeholder="Paste a Youtube URL…"
-                            ref={urlRef}
-                        />
-                    </Box>
-                    <Box>
-                        <Button colorScheme="teal" onClick={searchUrl}>
-                            Search
-                        </Button>
-                    </Box>
-                </Flex>
-
+                <form onSubmit={(e) => e.preventDefault()}>
+                    <Flex gap={"4"}>
+                        <Box flexGrow={"1"}>
+                            <Input
+                                placeholder="Paste a Youtube URL…"
+                                ref={urlRef}
+                            />
+                        </Box>
+                        <Box>
+                            <Button
+                                colorScheme="teal"
+                                onClick={searchUrl}
+                                type="submit"
+                            >
+                                Search
+                            </Button>
+                        </Box>
+                    </Flex>
+                </form>
                 <MainVideo
                     mainPlayerRef={mainPlayerRef}
                     videoId={videoId || ""}
