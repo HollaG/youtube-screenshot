@@ -1,20 +1,27 @@
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactPlayer from "react-player";
 import TimestampList from "./TimestampList";
 
 import download from "downloadjs";
-import MainVideo from "./MainVideo";
+import MainVideo, { sliderWidth } from "./MainVideo";
 
 import {
     Box,
     Button,
+    Center,
     Container,
     Flex,
+    FormControl,
+    FormErrorMessage,
     Heading,
+    Image,
     Input,
+    Text,
     ToastProps,
+    useBoolean,
     useToast,
 } from "@chakra-ui/react";
+import sanitize from "sanitize-filename";
 
 const LEFT_DEFAULT = 0;
 const LEFT_OFFSET_DEFAULT = 100;
@@ -34,11 +41,43 @@ const Body = () => {
     const urlRef = useRef<HTMLInputElement>(null);
     // youtube url
     const [url, setUrl] = useState("");
+    const [videoErrorMessage, setVideoErrorMessage] = useState("");
+    const [isLoadingVideoInfo, setIsLoadingVideoInfo] = useState(false);
+    const [videoName, setVideoName] = useState("");
 
     const searchUrl = () => {
-        setUrl(urlRef.current?.value || "");
-        setTimestamps([]);
-        setCropSettings({});
+        // check the url
+        setIsLoadingVideoInfo(true);
+        fetch(`${SERVER_URL}/info?url=${urlRef.current?.value}`, {})
+            .then((res) => res.json())
+            .then((resp) => {
+                // validate if this video can be used
+                if (resp.error) {
+                    setVideoErrorMessage(resp.message);
+                    return;
+                }
+
+                if (
+                    resp.data.lengthSeconds &&
+                    Number(resp.data.lengthSeconds) > 45 * 60
+                ) {
+                    // 45 minutes
+                    setVideoErrorMessage(
+                        "Video is longer than 45 minutes! This is not allowed."
+                    );
+                    return;
+                }
+
+                // otherwise ok :)
+                setUrl(urlRef.current?.value || "");
+                setTimestamps([]);
+                setCropSettings({});
+                setVideoErrorMessage("");
+                setVideoName(resp.data.title);
+            })
+            .finally(() => {
+                setIsLoadingVideoInfo(false);
+            });
     };
 
     // list of selected timestamps
@@ -46,6 +85,18 @@ const Body = () => {
 
     const videoId = getId(url);
     const mainPlayerRef = useRef<ReactPlayer>(null);
+
+    // remaining downloads for today
+    type Quota = {
+        remaining: number;
+        resetTimeMs: number;
+    };
+    const [quota, setQuota] = useState<Quota>({
+        remaining: 10,
+        resetTimeMs: Date.now() + 24 * 60 * 60 * 1000,
+    });
+
+    const [showScreenshotPreviews, setShowScreenshotPreviews] = useBoolean();
 
     const addScreenshot = () => {
         if (!mainPlayerRef.current) return;
@@ -88,6 +139,12 @@ const Body = () => {
     const downloadPDF = async () => {
         setIsLoading(true);
         const downloadPromise = new Promise((resolve, reject) => {
+            if (quota.remaining === 0) {
+                reject({
+                    message:
+                        "You have hit your limit of 10 downloads per day! Please try again in 24 hours.",
+                });
+            }
             fetch(SERVER_URL, {
                 method: "POST",
                 body: JSON.stringify({
@@ -99,9 +156,20 @@ const Body = () => {
                     "Content-Type": "application/json",
                 },
             })
-                .then((res) => res.blob())
-                .then((blob) => {
-                    download(blob);
+                .then((res) => {
+                    // try res.json()
+                    if (res.status === 429) {
+                        // too many requests
+                        throw new Error(
+                            "You have hit your limit of 10 downloads per day! Please try again in 24 hours."
+                        );
+                    }
+
+                    return res.blob();
+                })
+                .then((blob) => {                    
+                    download(blob, sanitize(videoName) + ".pdf");
+                    updateQuota();
                     resolve(null);
                 })
                 .catch((e) => {
@@ -118,21 +186,21 @@ const Body = () => {
                 description: "Your file is now downloading!",
                 ...DEFAULT_TOAST_OPTIONS,
             },
-            error: {
-                title: "Error processing the video!",
-                description: "Something went wrong! Please try again later.",
+            error: (err) => ({
+                title: "Error processing video!",
+                description: err.message,
                 ...DEFAULT_TOAST_OPTIONS,
-            },
+            }),
             loading: {
                 title: "File processing & downloading",
-                description: "Please wait...",
+                description: "Please wait, this can take a while...",
                 ...DEFAULT_TOAST_OPTIONS,
                 isClosable: false,
             },
         });
     };
 
-    // -------- Controls for the crop
+    /* ---------------- CROP CONTROLS ---------------- */
     const [cropSettings, setCropSettings] = useState<{
         [timestamp: number]: {
             left: number;
@@ -152,13 +220,22 @@ const Body = () => {
 
     const [isCropping, setIsCropping] = useState(false);
 
+    /**
+     * Begin cropping
+     *
+     * @param timestamp The timestamp that the user wants to crop
+     */
     const beginCrop = (timestamp: number) => {
         mainPlayerRef.current?.seekTo(timestamp);
         setIsCropping(true);
         setCurrentCropTimestamp(timestamp);
 
-        scrollTo({
-            top: 0,
+        // scrollTo({
+        //     top: 0,
+        //     behavior: "smooth",
+        // });
+
+        document.getElementById("player-container")?.scrollIntoView({
             behavior: "smooth",
         });
 
@@ -186,6 +263,13 @@ const Body = () => {
         setBottom,
     };
 
+    /**
+     * Apply the selected crop area to only the current image
+     *
+     * @param timestamp The timestamp to crop
+     * @param isAll A flag to indicate if we are using this function internally in #cropAll. If we are, we do not
+     * display the Toast that indicates success
+     */
     const cropOne = (timestamp: number | null, isAll?: boolean) => {
         if (timestamp === null) {
             setIsCropping(false);
@@ -214,8 +298,10 @@ const Body = () => {
         }
     };
 
+    /**
+     * Apply the selected crop area to all images
+     */
     const cropAll = () => {
-        console.log(timestamps);
         for (const timestamp of timestamps) {
             cropOne(timestamp, true);
         }
@@ -226,33 +312,126 @@ const Body = () => {
         });
     };
 
+    /**
+     * Cancel crop mode
+     */
     const cropCancel = () => {
         setIsCropping(false);
     };
 
+    // Rate limiting
+    useEffect(() => {
+        updateQuota();
+    }, []);
+
+    const updateQuota = useCallback(() => {
+        fetch(SERVER_URL)
+            .then((res) => res.json())
+            .then((data) => {
+                setQuota({
+                    remaining: data.remaining,
+                    resetTimeMs: new Date(data.resetTime).getTime(),
+                });
+            });
+    }, [SERVER_URL, setQuota]);
+
     return (
-        <Container maxW="container.xl" centerContent mx={"auto"} my={"9"}>
+        <Container
+            maxW="container.xl"
+            centerContent
+            mx={"auto"}
+            my={"9"}
+            mt={16}
+        >
             <Flex direction={"column"} gap="4" width={"100%"}>
-                <Heading textAlign={"center"}> Youtube Screenshot Tool</Heading>
-                <form onSubmit={(e) => e.preventDefault()}>
-                    <Flex gap={"4"}>
-                        <Box flexGrow={"1"}>
-                            <Input
-                                placeholder="Paste a Youtube URL…"
-                                ref={urlRef}
-                            />
-                        </Box>
-                        <Box>
-                            <Button
-                                colorScheme="teal"
-                                onClick={searchUrl}
-                                type="submit"
-                            >
-                                Search
-                            </Button>
-                        </Box>
-                    </Flex>
-                </form>
+                <Heading
+                    textAlign={"center"}
+                    fontWeight={600}
+                    fontSize={{ base: "4xl", md: "6xl" }}
+                    lineHeight={"110%"}
+                    mb={6}
+                >
+                    {" "}
+                    Youtube Screenshot Tool 📸
+                </Heading>
+                <Center>
+                    <Text
+                        maxW={"container.md"}
+                        textAlign={"center"}
+                        fontSize={"lg"}
+                    >
+                        YT2PDF allows you to download screenshots from any
+                        Youtube video and compile them into a PDF for easy
+                        viewing! You'll also receive all the individual images
+                        when downloading.
+                    </Text>
+                </Center>
+                <Center>
+                    <Text
+                        maxW={"container.md"}
+                        textAlign={"center"}
+                        fontSize={"lg"}
+                    >
+                        Simply paste in the URL to the Youtube video in the text
+                        box below.
+                    </Text>
+                </Center>
+
+                <Center>
+                    <Text
+                        maxW={"container.md"}
+                        textAlign={"center"}
+                        fontSize={"md"}
+                        textColor={"red"}
+                    >
+                        Videos must be under 45 minutes in length, and cannot be
+                        Youtube Shorts.
+                    </Text>
+                </Center>
+                <Center>
+                    <Text
+                        maxW={"container.md"}
+                        textAlign={"center"}
+                        fontSize={"sm"}
+                        textColor={"red"}
+                    >
+                        You have <b>{quota.remaining}</b> downloads remaining.
+                        Resets on {new Date(quota.resetTimeMs).toLocaleString()}
+                    </Text>
+                </Center>
+                <Center>
+                    <Image
+                        src={`${SERVER_URL}/guide.png`}
+                        alt="A visual guide on how yt2pdf works"
+                    />
+                </Center>
+                <Box px={sliderWidth}>
+                    <form onSubmit={(e) => e.preventDefault()}>
+                        <FormControl isInvalid={videoErrorMessage !== ""}>
+                            <Flex gap={"4"}>
+                                <Box flexGrow={"1"}>
+                                    <Input
+                                        placeholder="Paste a Youtube URL…"
+                                        ref={urlRef}
+                                    />
+                                </Box>
+                                <Box>
+                                    <Button
+                                        colorScheme="teal"
+                                        onClick={searchUrl}
+                                        type="submit"
+                                        isLoading={isLoadingVideoInfo}
+                                    >
+                                        Search
+                                    </Button>
+                                </Box>
+                            </Flex>
+                            <FormErrorMessage>
+                                {videoErrorMessage}
+                            </FormErrorMessage>
+                        </FormControl>
+                    </form>
+                </Box>
                 <MainVideo
                     mainPlayerRef={mainPlayerRef}
                     videoId={videoId || ""}
@@ -263,13 +442,24 @@ const Body = () => {
                 <Box>
                     <Flex gap={"4"} justify={"center"}>
                         {!isCropping ? (
-                            <Button
-                                onClick={addScreenshot}
-                                isDisabled={!videoId}
-                                colorScheme="teal"
-                            >
-                                Add Screenshot at current time
-                            </Button>
+                            <Flex gap={3}>
+                                <Button
+                                    onClick={addScreenshot}
+                                    isDisabled={!videoId}
+                                    colorScheme="teal"
+                                >
+                                    Add Screenshot at current time
+                                </Button>
+                                <Button
+                                    onClick={setShowScreenshotPreviews.toggle}
+                                    isDisabled={!videoId}
+                                    display={{ base: "none", md: "block" }}
+                                >
+                                    {showScreenshotPreviews
+                                        ? "Hide screenshot previews"
+                                        : "Show screenshot previews"}
+                                </Button>
+                            </Flex>
                         ) : (
                             <>
                                 <Button
@@ -298,6 +488,7 @@ const Body = () => {
                             videoId={videoId || ""}
                             onDelete={removeScreenshot}
                             beginCrop={beginCrop}
+                            showScreenshotPreviews={showScreenshotPreviews}
                         />
                     </Box>
                 </Flex>
@@ -315,6 +506,16 @@ const Body = () => {
                     </Flex>
                 </Box>
             </Flex>
+            {/* <Center mt={24}>
+                <Text>
+                    {" "}
+                    Made by Marcus Soh |{" "}
+                    <Link isExternal href="https://marcussoh.com">
+                        {" "}
+                        Website{" "}
+                    </Link>
+                </Text>
+            </Center> */}
         </Container>
     );
 };

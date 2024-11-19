@@ -10,9 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@chakra-ui/icons": "^2.1.1",
     "@chakra-ui/react": "^2.8.2",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
+    "@fontsource/inter": "^5.0.16",
+    "@fontsource/lexend": "^5.0.18",
     "downloadjs": "^1.4.7",
     "framer-motion": "^10.16.16",
     "react": "^18.2.0",
@@ -21,6 +24,7 @@
     "react-player": "^2.13.0",
     "react-reverse-portal": "^2.1.1",
     "react-sortablejs": "^6.1.4",
+    "sanitize-filename": "^1.6.3",
     "sortablejs": "^1.15.1"
   },
   "devDependencies": {

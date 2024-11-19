@@ -1,9 +1,16 @@
 import {
+    ChevronDownIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon,
+    ChevronUpIcon,
+} from "@chakra-ui/icons";
+import {
     AspectRatio,
     Box,
     Button,
     ButtonGroup,
     Flex,
+    Heading,
     RangeSlider,
     RangeSliderFilledTrack,
     RangeSliderThumb,
@@ -11,7 +18,7 @@ import {
 } from "@chakra-ui/react";
 import ReactPlayer from "react-player";
 
-const sliderWidth = "24px";
+export const sliderWidth = "24px";
 
 /**
  * Controls the display of the main viewing window.
@@ -50,7 +57,7 @@ const MainVideo = ({
     };
 
     return (
-        <Flex direction={"column"} p={"4"}>
+        <Flex direction={"column"}>
             {/* Video and Vertical Crop */}
             <Flex>
                 <Box
@@ -72,7 +79,7 @@ const MainVideo = ({
                             position: "relative",
                         }}
                     >
-                        <AspectRatio ratio={16 / 9}>
+                        <AspectRatio ratio={16 / 9} id="player-container">
                             <ReactPlayer
                                 ref={mainPlayerRef}
                                 url={`//www.youtube.com/embed/${videoId}`}
@@ -94,6 +101,28 @@ const MainVideo = ({
                                 }}
                             ></Box>
                         )}
+                        {isCropping && (
+                            <Flex
+                                style={{
+                                    position: "absolute",
+                                    top: 0,
+                                    bottom: 0,
+                                    left: "15%",
+                                    right: "15%",
+                                }}
+                                justifyContent={"center"}
+                                alignItems={"center"}
+                            >
+                                <Heading
+                                    textAlign={"center"}
+                                    textColor={"white"}
+                                    // bgColor="grey.100"
+                                >
+                                    Adjust the Sliders at the edges of the video
+                                    to choose your crop area!
+                                </Heading>
+                            </Flex>
+                        )}
                     </Box>
                 </Box>
                 <Flex
@@ -106,6 +135,7 @@ const MainVideo = ({
                     <Box style={{ transform: "scale(1.01)" }}>
                         {isCropping && (
                             <RangeSlider
+                                size={"lg"}
                                 aria-label={["min", "max"]}
                                 value={[controls.bottom, controls.bottomOffset]}
                                 orientation="vertical"
@@ -118,8 +148,22 @@ const MainVideo = ({
                                 <RangeSliderTrack>
                                     <RangeSliderFilledTrack />
                                 </RangeSliderTrack>
-                                <RangeSliderThumb index={0} />
-                                <RangeSliderThumb index={1} />
+                                <RangeSliderThumb
+                                    index={0}
+                                    boxSize={6}
+                                    bgColor={"teal"}
+                                >
+                                    {" "}
+                                    <ChevronDownIcon color={"white"} />
+                                </RangeSliderThumb>
+
+                                <RangeSliderThumb
+                                    index={1}
+                                    boxSize={6}
+                                    bgColor={"teal"}
+                                >
+                                    <ChevronUpIcon color={"white"} />
+                                </RangeSliderThumb>
                             </RangeSlider>
                         )}
                     </Box>
@@ -139,9 +183,9 @@ const MainVideo = ({
                     style={{
                         height: sliderWidth,
                     }}
-                    align={"end"}
+                    alignItems={"end"}
                 >
-                    <Box width={"100%"} style={{ transform: "scale(1.01)" }}>
+                    <Box width={"100%"}>
                         {isCropping && (
                             <RangeSlider
                                 aria-label={["min", "max"]}
@@ -151,12 +195,25 @@ const MainVideo = ({
                                     controls.setLeftOffset(nr);
                                 }}
                                 colorScheme="teal"
+                                size={"lg"}
                             >
                                 <RangeSliderTrack>
                                     <RangeSliderFilledTrack />
                                 </RangeSliderTrack>
-                                <RangeSliderThumb index={0} />
-                                <RangeSliderThumb index={1} />
+                                <RangeSliderThumb
+                                    index={0}
+                                    boxSize={6}
+                                    bgColor="teal"
+                                >
+                                    <ChevronLeftIcon color="white" />
+                                </RangeSliderThumb>
+                                <RangeSliderThumb
+                                    index={1}
+                                    boxSize={6}
+                                    bgColor={"teal"}
+                                >
+                                    <ChevronRightIcon color={"white"} />
+                                </RangeSliderThumb>
                             </RangeSlider>
                         )}
                     </Box>
